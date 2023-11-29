@@ -100,6 +100,7 @@ class GenericDataset(data.Dataset):
 
     pre_cts, track_ids = None, None
     if opt.tracking:
+      # 获取pre_image
       pre_image, pre_anns, frame_dist = self._load_pre_data(
         img_info['video_id'], img_info['frame_id'], 
         img_info['sensor_id'] if 'sensor_id' in img_info else 1)
@@ -117,6 +118,8 @@ class GenericDataset(data.Dataset):
           c_pre, s_pre, rot, [opt.input_w, opt.input_h])
         trans_output_pre = get_affine_transform(
           c_pre, s_pre, rot, [opt.output_w, opt.output_h])
+        
+      # 计算并得到pre_img和pre_hm
       pre_img = self._get_input(pre_image, trans_input_pre)
       pre_hm, pre_cts, track_ids = self._get_pre_dets(
         pre_anns, trans_input_pre, trans_output_pre)
@@ -180,12 +183,15 @@ class GenericDataset(data.Dataset):
     img_infos = self.video_to_images[video_id]
     # If training, random sample nearby frames as the "previoud" frame
     # If testing, get the exact prevous frame
+    
+    # 训练模式下，不需要严格按照时间前后进行取帧，在允许的max_frame_dist内随机获取一帧作为"previoud" frame
     if 'train' in self.split:
       img_ids = [(img_info['id'], img_info['frame_id']) \
           for img_info in img_infos \
           if abs(img_info['frame_id'] - frame_id) < self.opt.max_frame_dist and \
           (not ('sensor_id' in img_info) or img_info['sensor_id'] == sensor_id)]
     else:
+      # 验证模式下则需获取真正的前一帧
       img_ids = [(img_info['id'], img_info['frame_id']) \
           for img_info in img_infos \
             if (img_info['frame_id'] - frame_id) == -1 and \

@@ -72,7 +72,8 @@ class BaseModel(nn.Module):
 
     def forward(self, x, pre_img=None, pre_hm=None):
       if (pre_hm is not None) or (pre_img is not None):
-        feats = self.imgpre2feats(x, pre_img, pre_hm)
+        # 此处一共有三个输入，分别是本次特征，上次特征，以及上次heatmap
+        feats = self.imgpre2feats(x, pre_img, pre_hm)  
       else:
         feats = self.img2feats(x)
       out = []

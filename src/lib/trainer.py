@@ -46,6 +46,7 @@ class GenericLoss(torch.nn.Module):
       output = self._sigmoid_output(output)
 
       if 'hm' in output:
+        # FastFocalLoss
         losses['hm'] += self.crit(
           output['hm'], batch['hm'], batch['ind'], 
           batch['mask'], batch['cat']) / opt.num_stacks
@@ -56,25 +57,30 @@ class GenericLoss(torch.nn.Module):
 
       for head in regression_heads:
         if head in output:
+          # RegWeightedL1Loss
           losses[head] += self.crit_reg(
             output[head], batch[head + '_mask'],
             batch['ind'], batch[head]) / opt.num_stacks
       
       if 'hm_hp' in output:
+        # FastFocalLoss
         losses['hm_hp'] += self.crit(
           output['hm_hp'], batch['hm_hp'], batch['hp_ind'], 
           batch['hm_hp_mask'], batch['joint']) / opt.num_stacks
         if 'hp_offset' in output:
+          # RegWeightedL1Loss
           losses['hp_offset'] += self.crit_reg(
             output['hp_offset'], batch['hp_offset_mask'],
             batch['hp_ind'], batch['hp_offset']) / opt.num_stacks
         
       if 'rot' in output:
+        # BinRotLoss
         losses['rot'] += self.crit_rot(
           output['rot'], batch['rot_mask'], batch['ind'], batch['rotbin'],
           batch['rotres']) / opt.num_stacks
 
       if 'nuscenes_att' in output:
+        # WeightedBCELoss
         losses['nuscenes_att'] += self.crit_nuscenes_att(
           output['nuscenes_att'], batch['nuscenes_att_mask'],
           batch['ind'], batch['nuscenes_att']) / opt.num_stacks
@@ -99,13 +105,18 @@ class ModleWithLoss(torch.nn.Module):
     loss, loss_stats = self.loss(outputs, batch)
     return outputs[-1], loss, loss_stats
 
+'''
+names: Trainer
+description: 训练相关
+return {*}
+'''
 class Trainer(object):
   def __init__(
     self, opt, model, optimizer=None):
     self.opt = opt
     self.optimizer = optimizer
-    self.loss_stats, self.loss = self._get_losses(opt)
-    self.model_with_loss = ModleWithLoss(model, self.loss)
+    self.loss_stats, self.loss = self._get_losses(opt) # 定义各类损失函数
+    self.model_with_loss = ModleWithLoss(model, self.loss) # 定义模型与损失函数，后续forward就是通过model_with_loss调用
 
   def set_device(self, gpus, chunk_sizes, device):
     if len(gpus) > 1:
@@ -146,6 +157,7 @@ class Trainer(object):
       for k in batch:
         if k != 'meta':
           batch[k] = batch[k].to(device=opt.device, non_blocking=True)   
+      # 前向传播
       output, loss, loss_stats = model_with_loss(batch)
       loss = loss.mean()
       if phase == 'train':
